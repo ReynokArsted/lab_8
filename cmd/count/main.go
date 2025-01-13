@@ -33,10 +33,11 @@ func (h *Handlers) GetCount(writer http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writer.WriteHeader(500)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	writer.WriteHeader(200)
-	writer.Write([]byte(answer))
+	writer.Write([]byte("Значение счётчика: " + answer))
 }
 
 func (h *Handlers) SetCount(writer http.ResponseWriter, r *http.Request) {
@@ -49,28 +50,35 @@ func (h *Handlers) SetCount(writer http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writer.WriteHeader(400)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	value, err := strconv.Atoi(input.Massage)
 	if err != nil {
 		writer.WriteHeader(400)
-		writer.Write([]byte("Было введено не число"))
+		writer.Write([]byte("Было введено не число или присутствуют пробелы в записи числа"))
+		return
 	}
 
 	err = h.DProvider.UpdateCount(value)
 	if err != nil {
 		writer.WriteHeader(500)
 		writer.Write([]byte(err.Error()))
+		return
 	}
 
 	writer.WriteHeader(201)
-	writer.Write([]byte("Запись о числе была добавлена в БД"))
+	if value > 0 {
+		writer.Write([]byte("Значение счётчика было изменено на +" + strconv.Itoa(value)))
+	} else {
+		writer.Write([]byte("Значение счётчика было изменено на " + strconv.Itoa(value)))
+	}
 }
 
 func (Dp *DatabaseProvider) SelectCount() (string, error) {
 	var dbAnswer string
 
-	row := Dp.db.QueryRow("SELECT value FROM count LIMIT 1")
+	row := Dp.db.QueryRow("SELECT value FROM count")
 	err := row.Scan(&dbAnswer) // Проверка на то, есть ли искомые данные в БД
 	if err != nil {
 		return "", err
@@ -89,25 +97,20 @@ func (Dp *DatabaseProvider) UpdateCount(n int) error {
 }
 
 func main() {
-	// Считываем аргументы командной строки
 	address := flag.String("address", "127.0.0.1:8083", "адрес для запуска сервера")
 	flag.Parse()
 
-	// Формирование строки подключения для postgres
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
 		"password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
-	// Создание соединения с сервером postgres
 	Db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer Db.Close()
 
-	// Создаем провайдер для БД с набором методов
 	dp := DatabaseProvider{db: Db}
-	// Создаем экземпляр структуры с набором обработчиков
 	h := Handlers{DProvider: dp}
 
 	http.HandleFunc("/get", h.GetCount)
