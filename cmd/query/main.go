@@ -42,7 +42,7 @@ func (h *Handlers) SetName(writer http.ResponseWriter, r *http.Request) {
 	}
 
 	writer.WriteHeader(201)
-	writer.Write([]byte("Запись об имени была добавлена БД"))
+	writer.Write([]byte("Имя было изменено на " + str))
 }
 
 func (h *Handlers) GetName(writer http.ResponseWriter, r *http.Request) {
